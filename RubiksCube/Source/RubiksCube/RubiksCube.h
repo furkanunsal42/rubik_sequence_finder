@@ -1,0 +1,78 @@
+#pragma once
+
+#include "FrameBuffer.h"
+#include "Mesh.h"
+#include "Camera.h"
+#include "ShaderCompiler.h"
+
+#include <chrono>
+
+class RubiksCube {
+public:
+
+	RubiksCube();
+	~RubiksCube() = default;
+
+	void render(Framebuffer& target_framebuffer, Camera& camera);
+	void render(Camera& camera);
+
+	enum face {
+		left	 = 0,
+		right	 = 1,
+		up		 = 2,
+		down	 = 3,
+		backward = 4,
+		forward	 = 5,
+	};
+
+	enum axis {
+		X,
+		Y,
+		Z
+	};
+
+	struct Movement {
+		Movement(size_t stack_index = 0, axis rotation_axis = X, float rotation_radian = 0) : 
+			stack_index(stack_index), rotation_axis(rotation_axis), rotation_radian(rotation_radian) {}
+		size_t stack_index = 0;
+		axis rotation_axis = X;
+		float rotation_radian = 0;
+	};
+
+	void move(size_t stack_index, axis rotation_axis);
+
+	void set_movement(size_t stack_index, axis rotation_axis, float rotation_radian);
+	void clear_movement();
+
+private:
+
+	void init();
+	
+	int32_t get_piece_index(face surface, int32_t x, int32_t y);
+	uint8_t get_piece_id(face surface, int32_t x, int32_t y);
+	glm::vec3 get_piece_color(face surface, int32_t x, int32_t y);
+	void set_piece_id(face surface, int32_t x, int32_t y, uint8_t id);
+	int32_t get_piece_count();
+	
+	void _make_move(int32_t stack_index, axis rotation_axis);
+
+	constexpr static float move_animation_duration_s = 1.2f;
+	float _ease_out_quint(float t);
+	float _ease_out_elastic(float t);
+	float _ease_out_back(float t);
+
+	void _update_move_animation();
+	void _render_piece(Camera& camera, glm::ivec3 coordinate);
+	const glm::ivec2 cube_dimentions = glm::ivec2(3, 3);
+
+	std::chrono::time_point<std::chrono::system_clock> move_animation_begin;
+	bool move_animation_playing = false;
+
+	Movement active_movement;
+
+	glm::vec3 colors[6];
+	std::vector<uint8_t> pieces;
+
+	std::shared_ptr<Program> cube_renderer;
+	std::shared_ptr<Mesh> mesh_plane;
+};
