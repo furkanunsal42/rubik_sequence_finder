@@ -11,14 +11,13 @@ int main() {
 	desc.w_scale_framebuffer_size = false;
 	desc.w_scale_window_size = false;
 	desc.f_multisample_count = 16;
-	//desc.w_transparent = true;
-	//desc.w_always_on_top = true;
+	desc.w_transparent = true;
 	Window window(desc);
 
 	CameraController camera_controller;
 	camera_controller.camera.screen_width = window_resolution.x;
 	camera_controller.camera.screen_height = window_resolution.y;
-	camera_controller.camera.fov = 60;
+	camera_controller.camera.fov = 45;
 
 	RubiksCube rubiks_cube(3);
 
@@ -196,7 +195,7 @@ int main() {
 	window.newsletters->on_window_refresh_events.subscribe([&]() {
 		Framebuffer::get_screen().bind_draw();
 		primitive_renderer::set_viewport_size(window.get_window_resolution());
-		primitive_renderer::clear(0, 0, 0, 1.0);
+		primitive_renderer::clear(0, 0, 0, 0.0);
 		rubiks_cube.render(camera_controller.camera);
 		window.swap_buffers();
 		});
@@ -211,7 +210,7 @@ int main() {
 		double deltatime = window.handle_events();
 		Framebuffer::get_screen().bind_draw();
 		primitive_renderer::set_viewport_size(window.get_window_resolution());
-		primitive_renderer::clear(0, 0, 0, 1.0);
+		primitive_renderer::clear(0, 0, 0, 0.0);
 		camera_controller.handle_movements(window, deltatime);
 
 		if (movement_requested)
