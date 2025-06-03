@@ -10,7 +10,7 @@
 class RubiksCube {
 public:
 
-	RubiksCube();
+	RubiksCube(int32_t cube_dimentions = 3);
 	~RubiksCube() = default;
 
 	void render(Framebuffer& target_framebuffer, Camera& camera);
@@ -28,7 +28,10 @@ public:
 	enum axis {
 		X,
 		Y,
-		Z
+		Z,
+		NX,
+		NY,
+		NZ
 	};
 
 	struct Movement {
@@ -43,6 +46,18 @@ public:
 
 	void set_movement(size_t stack_index, axis rotation_axis, float rotation_radian);
 	void clear_movement();
+
+
+	struct piece_info {
+		face face = left;
+		int32_t u = -1;
+		int32_t v = -1;
+		glm::ivec3 coordinate = glm::ivec3(-1);
+	};
+	piece_info get_cursor_piece(glm::ivec2 coordinates);
+
+	const int32_t cube_dimentions;
+	std::shared_ptr<Framebuffer> cursor_picking_framebuffer;
 
 private:
 
@@ -62,8 +77,7 @@ private:
 	float _ease_out_back(float t);
 
 	void _update_move_animation();
-	void _render_piece(Camera& camera, glm::ivec3 coordinate);
-	const glm::ivec2 cube_dimentions = glm::ivec2(3, 3);
+	void _render_piece(Camera& camera, glm::ivec3 coordinate, bool render_to_cursor_picking = false);
 
 	std::chrono::time_point<std::chrono::system_clock> move_animation_begin;
 	bool move_animation_playing = false;
@@ -75,4 +89,10 @@ private:
 
 	std::shared_ptr<Program> cube_renderer;
 	std::shared_ptr<Mesh> mesh_plane;
+
+	glm::ivec2 cursor_picking_texture_resolution = glm::ivec2(1024, 1024);
+	Texture2D::ColorTextureFormat cursor_picking_texture_format = Texture2D::ColorTextureFormat::RGBA32F;
+	std::shared_ptr<Program> cursor_picking_renderer;
+	std::shared_ptr<Texture2D> cursor_picking_texture;
+	std::shared_ptr<Renderbuffer> cursor_picking_texture_depth;
 };
