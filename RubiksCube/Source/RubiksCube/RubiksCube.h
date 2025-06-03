@@ -51,7 +51,6 @@ public:
 	void set_movement(size_t stack_index, axis rotation_axis, float rotation_radian);
 	void clear_movement();
 
-
 	struct piece_info {
 		piece_info() = default;
 		bool operator==(const piece_info& other);
@@ -63,7 +62,7 @@ public:
 
 	constexpr static piece_info not_a_piece = piece_info();
 
-	piece_info get_cursor_piece(glm::ivec2 coordinates);
+	piece_info get_cursor_piece(glm::vec2 normalized_coordinates);
 
 	const int32_t cube_dimentions;
 	std::shared_ptr<Framebuffer> cursor_picking_framebuffer;

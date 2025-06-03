@@ -26,7 +26,6 @@ void RubiksCube::render(Camera& camera)
 	for (int z = 0; z < cube_dimentions; z++)
 		_render_piece(camera, glm::ivec3(x, y, z), false);
 
-
 	cursor_picking_framebuffer->bind_draw();
 	primitive_renderer::set_viewport_size(cursor_picking_texture_resolution);
 	primitive_renderer::clear(-1, -1, -1, -1);
@@ -289,16 +288,20 @@ void RubiksCube::clear_movement()
 	active_movement = Movement();
 }
 
-RubiksCube::piece_info RubiksCube::get_cursor_piece(glm::ivec2 coordinates)
+RubiksCube::piece_info RubiksCube::get_cursor_piece(glm::vec2 normalized_coordinates)
 {
 	if (cursor_picking_texture == nullptr)
-		return piece_info();
+		return not_a_piece;
 
-	Image image = *cursor_picking_texture->get_image(Texture2D::ColorFormat::RGBA, Texture2D::Type::FLOAT, 0, coordinates.x, coordinates.y, 1, 1);
+	if (glm::any(glm::greaterThan(normalized_coordinates, glm::vec2(1))) ||
+		glm::any(glm::lessThan(normalized_coordinates, glm::vec2(0))))
+		return not_a_piece;
+
+	Image image = *cursor_picking_texture->get_image(Texture2D::ColorFormat::RGBA, Texture2D::Type::FLOAT, 0, 
+		normalized_coordinates.x * cursor_picking_texture_resolution.x,
+		normalized_coordinates.y * cursor_picking_texture_resolution.y, 1, 1);
 	glm::vec4 data = *(glm::vec4*)image.get_image_data();
 	
-	std::cout << data.x << " " << data.y << " " << data.z << " " << data.w << std::endl;
-
 	if (glm::any(glm::equal(data, glm::vec4(-1))))
 		return not_a_piece;
 

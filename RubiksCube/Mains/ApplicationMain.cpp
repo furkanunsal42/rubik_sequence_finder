@@ -23,15 +23,14 @@ int main() {
 	RubiksCube rubiks_cube(3);
 
 	bool movement_requested = false;
-	bool movement_is_ready = false;
+	bool movement_is_ready = false;	
 	Window::KeyPressResult move_requesting_key;
 
 	window.newsletters->on_key_events.subscribe([&](const Window::KeyPressResult& result) {
 		
-		glm::ivec2 cursor_render_coord = glm::ivec2(
+		glm::vec2 cursor_render_coord = glm::vec2(
 			window.get_cursor_position().x,
-			window.get_window_resolution().y - 1 - window.get_cursor_position().y
-		);
+			window.get_window_resolution().y - 1 - window.get_cursor_position().y) / glm::vec2(window.get_window_resolution());
 
 		if (result.key == Window::Key::W && result.action == Window::PressAction::PRESS ||
 			result.key == Window::Key::S && result.action == Window::PressAction::PRESS ||
