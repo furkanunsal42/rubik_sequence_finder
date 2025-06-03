@@ -10,7 +10,7 @@ int main() {
 	desc.w_resolution = window_resolution;
 	desc.w_scale_framebuffer_size = false;
 	desc.w_scale_window_size = false;
-	desc.f_multisample_count = 0;
+	desc.f_multisample_count = 16;
 	//desc.w_transparent = true;
 	//desc.w_always_on_top = true;
 	Window window(desc);
@@ -22,36 +22,73 @@ int main() {
 
 	RubiksCube rubiks_cube(3);
 
-	std::vector<RubiksCube::Movement> movements{
-		RubiksCube::Movement(1, RubiksCube::axis::NX),
-		RubiksCube::Movement(0, RubiksCube::axis::NY),
-		RubiksCube::Movement(2, RubiksCube::axis::NZ),
-	};
-	int32_t movement_counter = 0;
+	bool movement_requested = false;
+	bool movement_is_ready = false;
+	Window::KeyPressResult move_requesting_key;
 
 	window.newsletters->on_key_events.subscribe([&](const Window::KeyPressResult& result) {
-		if (result.key == Window::Key::K && result.action == Window::PressAction::PRESS) {
-			if (movement_counter >= movements.size())
-				movement_counter = 0;
-			//rubiks_cube.move(movements[movement_counter].stack_index, movements[movement_counter].rotation_axis);
-			rubiks_cube.move(rand()%rubiks_cube.cube_dimentions, RubiksCube::axis(rand()%6));
-			movement_counter++;
-		}
 		
 		glm::ivec2 cursor_render_coord = glm::ivec2(
 			window.get_cursor_position().x,
 			window.get_window_resolution().y - 1 - window.get_cursor_position().y
 		);
 
-		if (result.key == Window::Key::W && result.action == Window::PressAction::PRESS) {
+		if (result.key == Window::Key::W && result.action == Window::PressAction::PRESS ||
+			result.key == Window::Key::S && result.action == Window::PressAction::PRESS ||
+			result.key == Window::Key::A && result.action == Window::PressAction::PRESS ||
+			result.key == Window::Key::D && result.action == Window::PressAction::PRESS ||
+			result.key == Window::Key::Q && result.action == Window::PressAction::PRESS ||
+			result.key == Window::Key::E && result.action == Window::PressAction::PRESS)
+		{
+			if (!rubiks_cube.is_move_animation_happening()) {
+				movement_is_ready = true;
+			}
+			else {
+				movement_is_ready = false;
+				movement_requested = true;
+				move_requesting_key = result;
+			}
+		}
+
+		if (
+			(result.key == Window::Key::W || result.key == Window::Key::S) && 
+			result.action == Window::PressAction::PRESS && 
+			movement_is_ready
+			) 
+		{
 			RubiksCube::piece_info info = rubiks_cube.get_cursor_piece(cursor_render_coord);
+			if (info == RubiksCube::not_a_piece)
+				return;
+
+			glm::vec3 camera_forward = camera_controller.get_camera_forward();
+			bool prefer_x = 
+				glm::max(glm::dot(camera_forward, glm::vec3(1, 0, 0)), glm::dot(camera_forward, glm::vec3(-1, 0, 0))) 
+				>
+				glm::max(glm::dot(camera_forward, glm::vec3(0, 0, 1)), glm::dot(camera_forward, glm::vec3(0, 0, -1)));
+
+			bool perefer_positive_x = glm::dot(camera_forward, glm::vec3(1, 0, 0)) > glm::dot(camera_forward, glm::vec3(-1, 0, 0));
+			bool perefer_positive_z = glm::dot(camera_forward, glm::vec3(0, 0, 1)) > glm::dot(camera_forward, glm::vec3(1, 0, -1));
+
+			RubiksCube::axis up_prefered_axis =
+				prefer_x ?
+				(perefer_positive_x ? RubiksCube::axis::NZ : RubiksCube::axis::Z) :
+				(perefer_positive_z ? RubiksCube::axis::X : RubiksCube::axis::NX);
+
+			RubiksCube::axis down_prefered_axis =
+				prefer_x ?
+				(perefer_positive_x ? RubiksCube::axis::Z : RubiksCube::axis::NZ) :
+				(perefer_positive_z ? RubiksCube::axis::NX : RubiksCube::axis::X);
+
 			RubiksCube::axis axis = 
 				info.face == RubiksCube::face::left		? RubiksCube::axis::NZ : 
 				info.face == RubiksCube::face::right	? RubiksCube::axis::Z : 
-				info.face == RubiksCube::face::up		? RubiksCube::axis::NY : 
-				info.face == RubiksCube::face::down		? RubiksCube::axis::NY :
+				info.face == RubiksCube::face::up		? up_prefered_axis :
+				info.face == RubiksCube::face::down		? down_prefered_axis :
 				info.face == RubiksCube::face::backward	? RubiksCube::axis::NX :
 				info.face == RubiksCube::face::forward	? RubiksCube::axis::X : RubiksCube::axis::X;
+			
+			if (result.key == Window::Key::S)
+				axis = RubiksCube::invert_axis(axis);
 
 			int32_t stack_index = 
 				axis == RubiksCube::axis::X		? info.coordinate.x :
@@ -61,26 +98,94 @@ int main() {
 				axis == RubiksCube::axis::Z		? info.coordinate.z :
 				axis == RubiksCube::axis::NZ	? info.coordinate.z : info.coordinate.x;
 
-			std::cout << "coodinate is " << info.coordinate.x << " " << info.coordinate.y << " " << info.coordinate.z << std::endl;
+			rubiks_cube.move(stack_index, axis);
+			movement_is_ready = false;
+		}
+		if (
+			(result.key == Window::Key::A || result.key == Window::Key::D) &&
+			result.action == Window::PressAction::PRESS &&
+			movement_is_ready
+			) 
+		{
+			RubiksCube::piece_info info = rubiks_cube.get_cursor_piece(cursor_render_coord);
+			if (info == RubiksCube::not_a_piece)
+				return;
+
+			glm::vec3 camera_forward = camera_controller.get_camera_forward();
+			bool prefer_x =
+				glm::max(glm::dot(camera_forward, glm::vec3(1, 0, 0)), glm::dot(camera_forward, glm::vec3(-1, 0, 0)))
+				>
+				glm::max(glm::dot(camera_forward, glm::vec3(0, 0, 1)), glm::dot(camera_forward, glm::vec3(0, 0, -1)));
+
+			bool perefer_positive_x = glm::dot(camera_forward, glm::vec3(1, 0, 0)) > glm::dot(camera_forward, glm::vec3(-1, 0, 0));
+			bool perefer_positive_z = glm::dot(camera_forward, glm::vec3(0, 0, 1)) > glm::dot(camera_forward, glm::vec3(1, 0, -1));
+
+			RubiksCube::axis up_prefered_axis =
+				prefer_x ?
+				(perefer_positive_x ? RubiksCube::axis::NX : RubiksCube::axis::X) :
+				(perefer_positive_z ? RubiksCube::axis::NZ : RubiksCube::axis::Z);
+
+			RubiksCube::axis down_prefered_axis =
+				prefer_x ?
+				(perefer_positive_x ? RubiksCube::axis::X : RubiksCube::axis::NX) :
+				(perefer_positive_z ? RubiksCube::axis::Z : RubiksCube::axis::NZ);
+
+			RubiksCube::axis axis =
+				info.face == RubiksCube::face::left		? RubiksCube::axis::NY :
+				info.face == RubiksCube::face::right	? RubiksCube::axis::NY :
+				info.face == RubiksCube::face::up		? up_prefered_axis :
+				info.face == RubiksCube::face::down		? down_prefered_axis :
+				info.face == RubiksCube::face::backward ? RubiksCube::axis::NY :
+				info.face == RubiksCube::face::forward	? RubiksCube::axis::NY : RubiksCube::axis::Y;
+
+			if (result.key == Window::Key::D)
+				axis = RubiksCube::invert_axis(axis);
+
+			int32_t stack_index =
+				axis == RubiksCube::axis::X		? info.coordinate.x :
+				axis == RubiksCube::axis::NX	? info.coordinate.x :
+				axis == RubiksCube::axis::Y		? info.coordinate.y :
+				axis == RubiksCube::axis::NY	? info.coordinate.y :
+				axis == RubiksCube::axis::Z		? info.coordinate.z :
+				axis == RubiksCube::axis::NZ	? info.coordinate.z : info.coordinate.x;
 
 			rubiks_cube.move(stack_index, axis);
+			movement_is_ready = false;
 		}
-		if (result.key == Window::Key::S && result.action == Window::PressAction::PRESS) {
-			
-		}
-		if (result.key == Window::Key::A && result.action == Window::PressAction::PRESS) {
-			
-		}
-		if (result.key == Window::Key::D && result.action == Window::PressAction::PRESS) {
-			
-		}
-		if (result.key == Window::Key::Q && result.action == Window::PressAction::PRESS) {
-			
-		}
-		if (result.key == Window::Key::E && result.action == Window::PressAction::PRESS) {
-			
-		}
+		if (
+			(result.key == Window::Key::Q || result.key == Window::Key::E) &&
+			result.action == Window::PressAction::PRESS &&
+			movement_is_ready
+			) 
+		{
+			RubiksCube::piece_info info = rubiks_cube.get_cursor_piece(cursor_render_coord);
+			if (info == RubiksCube::not_a_piece)
+				return;
 
+			RubiksCube::axis axis =
+				info.face == RubiksCube::face::left		? RubiksCube::axis::NX :
+				info.face == RubiksCube::face::right	? RubiksCube::axis::X :
+				info.face == RubiksCube::face::up		? RubiksCube::axis::Y :
+				info.face == RubiksCube::face::down		? RubiksCube::axis::NY:
+				info.face == RubiksCube::face::backward ? RubiksCube::axis::Z :
+				info.face == RubiksCube::face::forward	? RubiksCube::axis::NZ : RubiksCube::axis::Z;
+
+			if (result.key == Window::Key::E)
+				axis = RubiksCube::invert_axis(axis);
+
+			int32_t stack_index =
+				axis == RubiksCube::axis::X		? info.coordinate.x :
+				axis == RubiksCube::axis::NX	? info.coordinate.x :
+				axis == RubiksCube::axis::Y		? info.coordinate.y :
+				axis == RubiksCube::axis::NY	? info.coordinate.y :
+				axis == RubiksCube::axis::Z		? info.coordinate.z :
+				axis == RubiksCube::axis::NZ	? info.coordinate.z : info.coordinate.x;
+
+			rubiks_cube.move(stack_index, axis);
+			movement_is_ready = false;
+
+			movement_is_ready = false;
+		}
 		});
 
 	window.newsletters->on_window_resolution_events.subscribe([&](const glm::ivec2& resolution) {
@@ -92,7 +197,7 @@ int main() {
 	window.newsletters->on_window_refresh_events.subscribe([&]() {
 		Framebuffer::get_screen().bind_draw();
 		primitive_renderer::set_viewport_size(window.get_window_resolution());
-		primitive_renderer::clear(1, 0, 0, 1.0);
+		primitive_renderer::clear(0, 0, 0, 1.0);
 		rubiks_cube.render(camera_controller.camera);
 		window.swap_buffers();
 		});
@@ -107,10 +212,20 @@ int main() {
 		double deltatime = window.handle_events();
 		Framebuffer::get_screen().bind_draw();
 		primitive_renderer::set_viewport_size(window.get_window_resolution());
-		primitive_renderer::clear(1, 0, 0, 1.0);
+		primitive_renderer::clear(0, 0, 0, 1.0);
 		camera_controller.handle_movements(window, deltatime);
+
+		if (movement_requested)
+			rubiks_cube.force_finish_move_animation();
+
 		rubiks_cube.render(camera_controller.camera);
-		//rubiks_cube.cursor_picking_framebuffer->blit_to_screen(glm::ivec2(1024), window.get_window_resolution(), Framebuffer::Channel::COLOR, Framebuffer::Filter::LINEAR);
+		
+		if (movement_requested) {
+			movement_is_ready = true;
+			movement_requested = false;
+			window.newsletters->on_key_events.publish(move_requesting_key);
+		}
+
 		window.swap_buffers();
 	}
 }

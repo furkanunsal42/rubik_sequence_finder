@@ -4,7 +4,7 @@
 
 CameraController::CameraController()
 {
-	camera.mouse_sensitivity = 0.15;
+	camera.mouse_sensitivity = 0.25;
 }
 
 void CameraController::handle_movements(Window& window, double deltatime)
@@ -44,4 +44,18 @@ void CameraController::handle_movements(Window& window, double deltatime)
 	camera.position = camera_origin - forward_vector * camera_distance;
 
 	camera.update_matrixes();
+}
+
+glm::vec3 CameraController::get_camera_position()
+{
+	camera.position = camera_origin - get_camera_forward() * camera_distance;
+	return camera.position;
+}
+
+glm::vec3 CameraController::get_camera_forward()
+{
+	camera.rotation_quat = glm::quat(glm::vec3(rotation_x, 0, 0));
+	camera.rotation_quat = glm::quat(glm::vec3(0, rotation_y, 0)) * camera.rotation_quat;
+	glm::vec3 forward_vector = (camera.rotation_quat * glm::vec3(0, 0, -1));
+	return forward_vector;
 }

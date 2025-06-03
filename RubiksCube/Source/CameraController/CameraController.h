@@ -14,9 +14,11 @@ public:
 	float camera_distance = 5;
 	Camera camera;
 
-	float scroll_sensitivity = 1;
+	float scroll_sensitivity = 1.4;
 
 	void handle_movements(Window& window, double deltatime);
+	glm::vec3 get_camera_position();
+	glm::vec3 get_camera_forward();
 
 private:
 	float rotation_x = 0;

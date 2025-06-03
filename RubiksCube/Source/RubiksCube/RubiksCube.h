@@ -34,6 +34,8 @@ public:
 		NZ
 	};
 
+	static axis invert_axis(axis axis);
+
 	struct Movement {
 		Movement(size_t stack_index = 0, axis rotation_axis = X, float rotation_radian = 0) : 
 			stack_index(stack_index), rotation_axis(rotation_axis), rotation_radian(rotation_radian) {}
@@ -42,6 +44,8 @@ public:
 		float rotation_radian = 0;
 	};
 
+	bool is_move_animation_happening();
+	void force_finish_move_animation();
 	void move(size_t stack_index, axis rotation_axis);
 
 	void set_movement(size_t stack_index, axis rotation_axis, float rotation_radian);
@@ -49,11 +53,16 @@ public:
 
 
 	struct piece_info {
+		piece_info() = default;
+		bool operator==(const piece_info& other);
 		face face = left;
 		int32_t u = -1;
 		int32_t v = -1;
 		glm::ivec3 coordinate = glm::ivec3(-1);
 	};
+
+	constexpr static piece_info not_a_piece = piece_info();
+
 	piece_info get_cursor_piece(glm::ivec2 coordinates);
 
 	const int32_t cube_dimentions;
@@ -71,7 +80,7 @@ private:
 	
 	void _make_move(int32_t stack_index, axis rotation_axis);
 
-	constexpr static float move_animation_duration_s = 1.2f;
+	constexpr static float move_animation_duration_s = 1.8f;
 	float _ease_out_quint(float t);
 	float _ease_out_elastic(float t);
 	float _ease_out_back(float t);

@@ -29,7 +29,7 @@ void RubiksCube::render(Camera& camera)
 
 	cursor_picking_framebuffer->bind_draw();
 	primitive_renderer::set_viewport_size(cursor_picking_texture_resolution);
-	primitive_renderer::clear(0, 0, 0, 0);
+	primitive_renderer::clear(-1, -1, -1, -1);
 	
 	for (int x = 0; x < cube_dimentions; x++)
 	for (int y = 0; y < cube_dimentions; y++)
@@ -243,10 +243,36 @@ float RubiksCube::_ease_out_back(float t)
 		: (std::pow(2 * t - 2, 2) * ((c2 + 1) * (t * 2 - 2) + c2) + 2) / 2;
 }
 
-void RubiksCube::move(size_t stack_index, axis rotation_axis)
+RubiksCube::axis RubiksCube::invert_axis(axis axis)
+{
+	switch (axis) {
+	case X:	 return NX;
+	case Y:	 return NY;
+	case Z:	 return NZ;
+	case NX: return X;
+	case NY: return Y;
+	case NZ: return Z;
+	}
+
+	return X;
+}
+
+bool RubiksCube::is_move_animation_happening()
+{
+	return move_animation_playing;
+}
+
+void RubiksCube::force_finish_move_animation()
 {
 	if (move_animation_playing)
 		_make_move(active_movement.stack_index, active_movement.rotation_axis);
+
+	move_animation_playing = false;
+}
+
+void RubiksCube::move(size_t stack_index, axis rotation_axis)
+{
+	force_finish_move_animation();
 
 	move_animation_playing = true;
 	move_animation_begin = std::chrono::system_clock::now();
@@ -270,6 +296,11 @@ RubiksCube::piece_info RubiksCube::get_cursor_piece(glm::ivec2 coordinates)
 
 	Image image = *cursor_picking_texture->get_image(Texture2D::ColorFormat::RGBA, Texture2D::Type::FLOAT, 0, coordinates.x, coordinates.y, 1, 1);
 	glm::vec4 data = *(glm::vec4*)image.get_image_data();
+	
+	std::cout << data.x << " " << data.y << " " << data.z << " " << data.w << std::endl;
+
+	if (glm::any(glm::equal(data, glm::vec4(-1))))
+		return not_a_piece;
 
 	piece_info info;
 	info.face = face(data.x);
@@ -277,11 +308,10 @@ RubiksCube::piece_info RubiksCube::get_cursor_piece(glm::ivec2 coordinates)
 	info.v = data.z;
 	info.coordinate = glm::ivec3(
 		(int32_t)data.w % cube_dimentions,
-		(int32_t)data.w / cube_dimentions,
+		(int32_t)(data.w / cube_dimentions) % cube_dimentions, 
 		(int32_t)data.w / (cube_dimentions*cube_dimentions)
 	);
-
-	std::cout << data.x << " " << data.y << " " << data.z << " " << data.w << std::endl;
+	
 	return info;
 }
 
@@ -307,10 +337,10 @@ void RubiksCube::init()
 
 	SingleModel unit_plane;
 	unit_plane.verticies = {
-		glm::vec3( 0.51,  0.51, 0),
-		glm::vec3( 0.51, -0.51, 0),
-		glm::vec3(-0.51,  0.51, 0),
-		glm::vec3(-0.51, -0.51, 0)
+		glm::vec3( 0.49,  0.49, 0),
+		glm::vec3( 0.49, -0.49, 0),
+		glm::vec3(-0.49,  0.49, 0),
+		glm::vec3(-0.49, -0.49, 0)
 	};
 	unit_plane.indicies = {
 		0, 1, 2,
@@ -601,4 +631,13 @@ void RubiksCube::_render_piece(Camera& camera, glm::ivec3 coordinate, bool rende
 		}
 	}
 
+}
+
+bool RubiksCube::piece_info::operator==(const piece_info& other)
+{
+	if(face != other.face) return false;
+	if(u != other.u) return false;
+	if(v != other.v) return false;
+	if(coordinate != other.coordinate) return false;
+	return true;
 }
