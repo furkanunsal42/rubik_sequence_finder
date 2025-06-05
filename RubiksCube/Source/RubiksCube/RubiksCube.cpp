@@ -242,6 +242,34 @@ float RubiksCube::_ease_out_back(float t)
 		: (std::pow(2 * t - 2, 2) * ((c2 + 1) * (t * 2 - 2) + c2) + 2) / 2;
 }
 
+void RubiksCube::highlight_piece(glm::ivec3 coordinate)
+{
+	highlighted_piece_coordinate = coordinate;
+	piece_highlighted = true;
+}
+
+void RubiksCube::highlight_face(face f, glm::ivec2 uv)
+{
+	highlighted_face = f;
+	highlighted_face_uv = uv;
+	face_highlighted = true;
+}
+
+void RubiksCube::clear_highlight_piece()
+{
+	piece_highlighted = false;
+}
+
+void RubiksCube::clear_highlight_face()
+{
+	face_highlighted = false;
+}
+
+glm::vec3 RubiksCube::alpha_blending(glm::vec3 background, glm::vec3 foreground, float alpha)
+{
+	return alpha * foreground + (1 - alpha) * background;
+}
+
 RubiksCube::axis RubiksCube::invert_axis(axis axis)
 {
 	switch (axis) {
@@ -293,7 +321,7 @@ RubiksCube::piece_info RubiksCube::get_cursor_piece(glm::vec2 normalized_coordin
 	if (cursor_picking_texture == nullptr)
 		return not_a_piece;
 
-	if (glm::any(glm::greaterThan(normalized_coordinates, glm::vec2(1))) ||
+	if (glm::any(glm::greaterThanEqual(normalized_coordinates, glm::vec2(1))) ||
 		glm::any(glm::lessThan(normalized_coordinates, glm::vec2(0))))
 		return not_a_piece;
 
@@ -360,6 +388,9 @@ void RubiksCube::init()
 	colors[backward ] = glm::vec3(255,  30,  64) / 255.0f;
 	colors[forward	] = glm::vec3(255, 145,  53) / 255.0f;
 
+	highlight_color	  = glm::vec3(255, 255, 255) / 255.0f;
+	highlight_alpha   = 0.45;
+
 	for (int32_t f = 0; f < 6; f++)
 	for (int32_t x = 0; x < cube_dimentions; x++)
 	for (int32_t y = 0; y < cube_dimentions; y++)
@@ -413,7 +444,7 @@ void RubiksCube::_render_piece(Camera& camera, glm::ivec3 coordinate, bool rende
 	else
 		camera.update_default_uniforms(*cursor_picking_renderer);
 
-	//glEnable(GL_DEPTH_TEST);
+	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 
 	if (coordinate.x == 0) {
@@ -431,7 +462,13 @@ void RubiksCube::_render_piece(Camera& camera, glm::ivec3 coordinate, bool rende
 		piece_position = glm::rotate(piece_position, glm::pi<float>() / 2, glm::vec3(0, 1, 0));
 
 		if (!render_to_cursor_picking) {
-			cube_renderer->update_uniform("color", glm::vec4(get_piece_color(face, coordinate.z, coordinate.y), 1));
+			glm::vec3 piece_color = get_piece_color(face, coordinate.z, coordinate.y);
+			glm::vec3 color =
+				piece_highlighted && coordinate == highlighted_piece_coordinate ? alpha_blending(highlight_color, piece_color, highlight_alpha) :
+				face_highlighted && face == highlighted_face && glm::ivec2(coordinate.z, coordinate.y) == highlighted_face_uv ? alpha_blending(highlight_color, piece_color, highlight_alpha) :
+				piece_color;
+
+			cube_renderer->update_uniform("color", glm::vec4(color, 1));
 			cube_renderer->update_uniform("model", piece_position);
 			primitive_renderer::render(
 				*cube_renderer,
@@ -467,7 +504,13 @@ void RubiksCube::_render_piece(Camera& camera, glm::ivec3 coordinate, bool rende
 		piece_position = glm::rotate(piece_position, -glm::pi<float>() / 2, glm::vec3(0, 1, 0));
 
 		if (!render_to_cursor_picking) {
-			cube_renderer->update_uniform("color", glm::vec4(get_piece_color(face, coordinate.z, coordinate.y), 1));
+			glm::vec3 piece_color = get_piece_color(face, coordinate.z, coordinate.y);
+			glm::vec3 color =
+				piece_highlighted && coordinate == highlighted_piece_coordinate ? alpha_blending(highlight_color, piece_color, highlight_alpha) :
+				face_highlighted && face == highlighted_face && glm::ivec2(coordinate.z, coordinate.y) == highlighted_face_uv ? alpha_blending(highlight_color, piece_color, highlight_alpha) :
+				piece_color;
+
+			cube_renderer->update_uniform("color", glm::vec4(color, 1));
 			cube_renderer->update_uniform("model", piece_position);
 			primitive_renderer::render(
 				*cube_renderer,
@@ -503,7 +546,13 @@ void RubiksCube::_render_piece(Camera& camera, glm::ivec3 coordinate, bool rende
 		piece_position = glm::rotate(piece_position, -glm::pi<float>() / 2, glm::vec3(1, 0, 0));
 
 		if (!render_to_cursor_picking) {
-			cube_renderer->update_uniform("color", glm::vec4(get_piece_color(face, coordinate.x, coordinate.z), 1));
+			glm::vec3 piece_color = get_piece_color(face, coordinate.x, coordinate.z);
+			glm::vec3 color =
+				piece_highlighted && coordinate == highlighted_piece_coordinate ? alpha_blending(highlight_color, piece_color, highlight_alpha) :
+				face_highlighted && face == highlighted_face && glm::ivec2(coordinate.x, coordinate.z) == highlighted_face_uv ? alpha_blending(highlight_color, piece_color, highlight_alpha) :
+				piece_color;
+
+			cube_renderer->update_uniform("color", glm::vec4(color, 1));
 			cube_renderer->update_uniform("model", piece_position);
 			primitive_renderer::render(
 				*cube_renderer,
@@ -539,7 +588,13 @@ void RubiksCube::_render_piece(Camera& camera, glm::ivec3 coordinate, bool rende
 		piece_position = glm::rotate(piece_position, glm::pi<float>() / 2, glm::vec3(1, 0, 0));
 
 		if (!render_to_cursor_picking) {
-			cube_renderer->update_uniform("color", glm::vec4(get_piece_color(face, coordinate.x, coordinate.z), 1));
+			glm::vec3 piece_color = get_piece_color(face, coordinate.x, coordinate.z);
+			glm::vec3 color =
+				piece_highlighted && coordinate == highlighted_piece_coordinate ? alpha_blending(highlight_color, piece_color, highlight_alpha) :
+				face_highlighted && face == highlighted_face && glm::ivec2(coordinate.x, coordinate.z) == highlighted_face_uv ? alpha_blending(highlight_color, piece_color, highlight_alpha) :
+				piece_color;
+
+			cube_renderer->update_uniform("color", glm::vec4(color, 1));
 			cube_renderer->update_uniform("model", piece_position);
 			primitive_renderer::render(
 				*cube_renderer,
@@ -575,7 +630,13 @@ void RubiksCube::_render_piece(Camera& camera, glm::ivec3 coordinate, bool rende
 		piece_position = glm::rotate(piece_position, glm::pi<float>(), glm::vec3(1, 0, 0));
 
 		if (!render_to_cursor_picking) {
-			cube_renderer->update_uniform("color", glm::vec4(get_piece_color(face, coordinate.x, coordinate.y), 1));
+			glm::vec3 piece_color = get_piece_color(face, coordinate.x, coordinate.y);
+			glm::vec3 color =
+				piece_highlighted && coordinate == highlighted_piece_coordinate ? alpha_blending(highlight_color, piece_color, highlight_alpha) :
+				face_highlighted && face == highlighted_face && glm::ivec2(coordinate.x, coordinate.y) == highlighted_face_uv ? alpha_blending(highlight_color, piece_color, highlight_alpha) :
+				piece_color;
+
+			cube_renderer->update_uniform("color", glm::vec4(color, 1));
 			cube_renderer->update_uniform("model", piece_position);
 			primitive_renderer::render(
 				*cube_renderer,
@@ -607,11 +668,17 @@ void RubiksCube::_render_piece(Camera& camera, glm::ivec3 coordinate, bool rende
 			piece_position = glm::rotate(piece_position, active_movement.rotation_radian, glm::vec3(1, 0, 0));
 		if ((active_movement.rotation_axis == Y || active_movement.rotation_axis == NY) && active_movement.stack_index == coordinate.y)
 			piece_position = glm::rotate(piece_position, active_movement.rotation_radian, glm::vec3(0, 1, 0));
-		piece_position = glm::translate(piece_position, glm::vec3(-cube_dimentions/2.0f + 0.5 + coordinate.x, -cube_dimentions/2.0f + 0.5 + coordinate.y, -cube_dimentions/2.0f));
+		piece_position = glm::translate(piece_position, glm::vec3(-cube_dimentions / 2.0f + 0.5 + coordinate.x, -cube_dimentions / 2.0f + 0.5 + coordinate.y, -cube_dimentions / 2.0f));
 		piece_position = glm::rotate(piece_position, 0.0f, glm::vec3(1, 0, 0));
 
 		if (!render_to_cursor_picking) {
-			cube_renderer->update_uniform("color", glm::vec4(get_piece_color(face, coordinate.x, coordinate.y), 1));
+			glm::vec3 piece_color = get_piece_color(face, coordinate.x, coordinate.y);
+			glm::vec3 color =
+				piece_highlighted && coordinate == highlighted_piece_coordinate ? alpha_blending(highlight_color, piece_color, highlight_alpha) :
+				face_highlighted && face == highlighted_face && glm::ivec2(coordinate.x, coordinate.y) == highlighted_face_uv ? alpha_blending(highlight_color, piece_color, highlight_alpha) :
+				piece_color;
+
+			cube_renderer->update_uniform("color", glm::vec4(color, 1));
 			cube_renderer->update_uniform("model", piece_position);
 			primitive_renderer::render(
 				*cube_renderer,

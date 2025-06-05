@@ -33,8 +33,16 @@ public:
 		NY,
 		NZ
 	};
-
 	static axis invert_axis(axis axis);
+
+	struct piece_info {
+		piece_info() = default;
+		bool operator==(const piece_info& other);
+		face face = left;
+		int32_t u = -1;
+		int32_t v = -1;
+		glm::ivec3 coordinate = glm::ivec3(-1);
+	};
 
 	struct Movement {
 		Movement(size_t stack_index = 0, axis rotation_axis = X, float rotation_radian = 0) : 
@@ -51,21 +59,15 @@ public:
 	void set_movement(size_t stack_index, axis rotation_axis, float rotation_radian);
 	void clear_movement();
 
-	struct piece_info {
-		piece_info() = default;
-		bool operator==(const piece_info& other);
-		face face = left;
-		int32_t u = -1;
-		int32_t v = -1;
-		glm::ivec3 coordinate = glm::ivec3(-1);
-	};
-
 	constexpr static piece_info not_a_piece = piece_info();
-
 	piece_info get_cursor_piece(glm::vec2 normalized_coordinates);
 
 	const int32_t cube_dimentions;
-	std::shared_ptr<Framebuffer> cursor_picking_framebuffer;
+
+	void highlight_face(face f, glm::ivec2 uv);
+	void clear_highlight_face();
+	void highlight_piece(glm::ivec3 coordinate);
+	void clear_highlight_piece();
 
 private:
 
@@ -84,6 +86,8 @@ private:
 	float _ease_out_elastic(float t);
 	float _ease_out_back(float t);
 
+	glm::vec3 alpha_blending(glm::vec3 background, glm::vec3 foreground, float alpha);
+
 	void _update_move_animation();
 	void _render_piece(Camera& camera, glm::ivec3 coordinate, bool render_to_cursor_picking = false);
 
@@ -91,6 +95,14 @@ private:
 	bool move_animation_playing = false;
 
 	Movement active_movement;
+	
+	glm::vec3 highlight_color;
+	float highlight_alpha;
+	glm::ivec3 highlighted_piece_coordinate;
+	bool piece_highlighted = false;
+	face highlighted_face;
+	glm::ivec2 highlighted_face_uv;
+	bool face_highlighted = false;
 
 	glm::vec3 colors[6];
 	std::vector<uint8_t> pieces;
@@ -103,4 +115,5 @@ private:
 	std::shared_ptr<Program> cursor_picking_renderer;
 	std::shared_ptr<Texture2D> cursor_picking_texture;
 	std::shared_ptr<Renderbuffer> cursor_picking_texture_depth;
+	std::shared_ptr<Framebuffer> cursor_picking_framebuffer;
 };

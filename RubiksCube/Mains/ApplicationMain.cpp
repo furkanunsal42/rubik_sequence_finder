@@ -14,6 +14,10 @@ int main() {
 	desc.w_transparent = true;
 	Window window(desc);
 
+	FontBank::get().load_font("../GraphicsCortex/Fonts/Roboto-Regular.ttf");
+	Text text("Hello There!");
+	Program text_program = default_program::text_program();
+
 	CameraController camera_controller;
 	camera_controller.camera.screen_width = window_resolution.x;
 	camera_controller.camera.screen_height = window_resolution.y;
@@ -192,6 +196,37 @@ int main() {
 		camera_controller.camera.screen_height = resolution.y;
 		});
 
+	window.newsletters->on_mouse_key_events.subscribe([&](const Window::MousePressResult& result) {
+		if (result.action == Window::PressAction::PRESS && result.button == Window::MouseButton::BUTTON1) {
+			rubiks_cube.get_cursor_piece(glm::ivec2(window.get_cursor_position().x, window.get_window_resolution().y-1-window.get_cursor_position().y));
+		}
+		});
+	
+	std::chrono::time_point<std::chrono::system_clock> last_cursor_update = std::chrono::system_clock::now();
+	bool cursor_move_event_delayed = false;
+	float cursor_update_period_ms = 32;
+
+	window.newsletters->on_cursor_position_events.subscribe([&](const glm::dvec2& position) {
+		if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - last_cursor_update).count() < cursor_update_period_ms) {
+			cursor_move_event_delayed = true;
+			return;
+		}
+		
+		glm::vec2 cursor_render_coord = glm::vec2(
+			position.x,
+			window.get_window_resolution().y - 1 - position.y) / glm::vec2(window.get_window_resolution());
+
+		RubiksCube::piece_info piece_to_highlight = rubiks_cube.get_cursor_piece(cursor_render_coord);
+		if (piece_to_highlight != RubiksCube::not_a_piece) {
+			rubiks_cube.highlight_face(piece_to_highlight.face, glm::ivec2(piece_to_highlight.u, piece_to_highlight.v));
+		}
+		else
+			rubiks_cube.clear_highlight_face();
+
+		cursor_move_event_delayed = false;
+		last_cursor_update = std::chrono::system_clock::now();
+		});
+
 	window.newsletters->on_window_refresh_events.subscribe([&]() {
 		Framebuffer::get_screen().bind_draw();
 		primitive_renderer::set_viewport_size(window.get_window_resolution());
@@ -200,12 +235,6 @@ int main() {
 		window.swap_buffers();
 		});
 
-	window.newsletters->on_mouse_key_events.subscribe([&](const Window::MousePressResult& result) {
-		if (result.action == Window::PressAction::PRESS && result.button == Window::MouseButton::BUTTON1) {
-			rubiks_cube.get_cursor_piece(glm::ivec2(window.get_cursor_position().x, window.get_window_resolution().y-1-window.get_cursor_position().y));
-		}
-		});
-	
 	while (!window.should_close()) {
 		double deltatime = window.handle_events();
 		Framebuffer::get_screen().bind_draw();
@@ -217,11 +246,17 @@ int main() {
 			rubiks_cube.force_finish_move_animation();
 
 		rubiks_cube.render(camera_controller.camera);
-		
+		primitive_renderer::render(text_program, text);
+
 		if (movement_requested) {
 			movement_is_ready = true;
 			movement_requested = false;
 			window.newsletters->on_key_events.publish(move_requesting_key);
+		}
+
+		bool cursor_event_delayed_too_long = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - last_cursor_update).count() < cursor_update_period_ms * 4.5;
+		if (cursor_event_delayed_too_long) {
+			window.newsletters->on_cursor_position_events.publish(window.get_cursor_position());
 		}
 
 		window.swap_buffers();
